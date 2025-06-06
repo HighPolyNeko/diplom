@@ -1,18 +1,22 @@
 package dstu.mkis44.nabokov.exception
 
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.access.AccessDeniedException as SpringAccessDeniedException
+import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.security.core.AuthenticationException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.multipart.MaxUploadSizeExceededException
 import java.time.LocalDateTime
-import org.springframework.security.authentication.BadCredentialsException
-import org.springframework.security.core.AuthenticationException
 
 @ControllerAdvice
 class GlobalExceptionHandler {
+    private val logger = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
 
     data class ErrorResponse(
         val timestamp: LocalDateTime = LocalDateTime.now(),
@@ -23,70 +27,69 @@ class GlobalExceptionHandler {
     )
 
     @ExceptionHandler(ApiException::class)
-    fun handleApiException(ex: ApiException): ResponseEntity<ErrorResponse> {
+    fun handleApiException(ex: ApiException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        logger.error("API Exception: {}", ex.message, ex)
+        
         val errorResponse = ErrorResponse(
             status = ex.status.value(),
             error = ex.status.reasonPhrase,
             message = ex.message,
-            path = "" // В реальном приложении здесь будет путь запроса
+            path = request.requestURI
         )
         return ResponseEntity(errorResponse, ex.status)
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
-    fun handleValidationErrors(ex: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
+    fun handleValidationErrors(ex: MethodArgumentNotValidException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        logger.error("Validation Error: {}", ex.message, ex)
+        
         val errors = ex.bindingResult.fieldErrors
             .map { it.defaultMessage ?: "Ошибка валидации" }
-            .first()
+            .joinToString(", ")
 
         val errorResponse = ErrorResponse(
             status = HttpStatus.BAD_REQUEST.value(),
             error = "Validation Error",
             message = errors,
-            path = ""
+            path = request.requestURI
         )
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
     @ExceptionHandler(ConstraintViolationException::class)
-    fun handleConstraintViolation(ex: ConstraintViolationException): ResponseEntity<ErrorResponse> {
+    fun handleConstraintViolation(ex: ConstraintViolationException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        logger.error("Constraint Violation: {}", ex.message, ex)
+        
         val errors = ex.constraintViolations
             .map { it.message }
-            .first()
+            .joinToString(", ")
 
         val errorResponse = ErrorResponse(
             status = HttpStatus.BAD_REQUEST.value(),
             error = "Validation Error",
             message = errors,
-            path = ""
+            path = request.requestURI
         )
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
-    @ExceptionHandler(AccessDeniedException::class)
-    fun handleAccessDenied(ex: AccessDeniedException): ResponseEntity<ErrorResponse> {
+    @ExceptionHandler(SpringAccessDeniedException::class)
+    fun handleAccessDenied(ex: SpringAccessDeniedException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        logger.error("Access Denied: {}", ex.message, ex)
+        
         val errorResponse = ErrorResponse(
             status = HttpStatus.FORBIDDEN.value(),
             error = "Forbidden",
             message = "Недостаточно прав для выполнения операции",
-            path = ""
+            path = request.requestURI
         )
         return ResponseEntity(errorResponse, HttpStatus.FORBIDDEN)
     }
 
-    @ExceptionHandler(InvalidTokenException::class)
-    fun handleInvalidTokenException(ex: InvalidTokenException): ResponseEntity<ErrorResponse> {
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.UNAUTHORIZED.value(),
-            error = "Unauthorized",
-            message = ex.message,
-            path = ""
-        )
-        return ResponseEntity(errorResponse, HttpStatus.UNAUTHORIZED)
-    }
-
     @ExceptionHandler(AuthenticationException::class)
-    fun handleAuthenticationException(ex: AuthenticationException): ResponseEntity<ErrorResponse> {
+    fun handleAuthenticationException(ex: AuthenticationException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        logger.error("Authentication Exception: {}", ex.message, ex)
+        
         val errorResponse = ErrorResponse(
             status = HttpStatus.UNAUTHORIZED.value(),
             error = "Unauthorized",
@@ -94,19 +97,48 @@ class GlobalExceptionHandler {
                 is BadCredentialsException -> "Неверные учетные данные"
                 else -> ex.message ?: "Ошибка аутентификации"
             },
-            path = ""
+            path = request.requestURI
         )
         return ResponseEntity(errorResponse, HttpStatus.UNAUTHORIZED)
     }
+    
+    @ExceptionHandler(MaxUploadSizeExceededException::class)
+    fun handleMaxSizeException(ex: MaxUploadSizeExceededException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        logger.error("File Size Exceeded: {}", ex.message, ex)
+        
+        val errorResponse = ErrorResponse(
+            status = HttpStatus.PAYLOAD_TOO_LARGE.value(),
+            error = "Payload Too Large",
+            message = "Размер файла превышает максимально допустимый",
+            path = request.requestURI
+        )
+        return ResponseEntity(errorResponse, HttpStatus.PAYLOAD_TOO_LARGE)
+    }
+    
+    @ExceptionHandler(FileStorageException::class)
+    fun handleFileStorageException(ex: FileStorageException, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        logger.error("File Storage Exception: {}", ex.message, ex)
+        
+        val errorResponse = ErrorResponse(
+            status = ex.status.value(),
+            error = ex.status.reasonPhrase,
+            message = ex.message,
+            path = request.requestURI
+        )
+        return ResponseEntity(errorResponse, ex.status)
+    }
 
     @ExceptionHandler(Exception::class)
-    fun handleException(ex: Exception): ResponseEntity<ErrorResponse> {
+    fun handleException(ex: Exception, request: HttpServletRequest): ResponseEntity<ErrorResponse> {
+        logger.error("Unhandled Exception: {}", ex.message, ex)
+        
         val errorResponse = ErrorResponse(
             status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
             error = "Internal Server Error",
-            message = ex.message ?: "Произошла внутренняя ошибка сервера",
-            path = ""
+            message = "Произошла внутренняя ошибка сервера",
+            path = request.requestURI
         )
         return ResponseEntity(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR)
     }
-} 
+}
+
