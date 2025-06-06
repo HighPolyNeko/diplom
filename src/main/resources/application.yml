@@ -10,10 +10,9 @@ spring:
       ddl-auto: none
     show-sql: true
   flyway:
-    enabled: true
+    validate-on-migrate: false
     baseline-on-migrate: true
-    locations: classpath:db/migration
-    validate-on-migrate: true
+    fail-on-missing-locations: false
 
   docker:
     compose:
@@ -22,6 +21,7 @@ spring:
 
   servlet:
     multipart:
+      enabled: true
       max-file-size: 100MB
       max-request-size: 100MB
 
