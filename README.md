@@ -1,4 +1,4 @@
-# Diplom API
+# Набоков МКИС44
 
 REST API для дипломного проекта на Spring Boot и Kotlin.
 
