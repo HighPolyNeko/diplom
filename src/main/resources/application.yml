@@ -1,0 +1,79 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/diplom
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+  flyway:
+    validate-on-migrate: false
+    baseline-on-migrate: true
+    fail-on-missing-locations: false
+
+  docker:
+    compose:
+      file: compose.yml
+      enabled: true
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+content:
+  storage:
+    path: ./storage/content
+
+security:
+  jwt:
+    access-token:
+      key: '{"kty":"oct","k":"dm6wRCBCAk_srTnPW6xOmdSRDPJVE0ULgjrRyeUSLCg"}'
+      ttl: PT5M # 5 минут
+    refresh-token:
+      key: '{"kty":"oct","k":"nQMwe_OR5z7ZDYNemAcEql6eGe_4TCplMaeO0Dmbfvg"}'
+      ttl: PT1H # 1 час
+  roles:
+    default: USER
+    available:
+      - USER
+      - ADMIN
+      - MODERATOR
+  endpoints:
+    public:
+      - /api/auth/**
+      - /api/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /api/content/files/**
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: ["health", "metrics", "prometheus"]
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+
+logging:
+  pattern:
+    console: "%d{yyyy_MM-dd HH:mm:ss.SSSXXX} %clr(%5p) %clr(${PID:---}){magenta} [%15.15t] %clr(%-40.40logger{39}){cyan} : %clr(%32.32(%X{traceId:-}){32}){magenta} %m%n%wEx"
+  level:
+    org:
+      springframework:
+        security: debug
