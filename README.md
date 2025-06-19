@@ -1,6 +1,6 @@
 # Набоков МКИС44
 
-REST API для дипломного проекта на Spring Boot и Kotlin.
+REST API на Spring Boot и Kotlin.
 
 ## Технологии
 
